@@ -15,6 +15,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 
+# link_directories(/work/y07/shared/utils/core/forge/24.0/map/libs/default/gnu/ofi)
+
 find_package(ZLIB REQUIRED)
 find_package(Boost REQUIRED COMPONENTS headers)
 find_package(VTK 9 REQUIRED COMPONENTS
@@ -110,6 +112,11 @@ target_link_libraries(Generation PRIVATE
   Boost::headers
   CGAL::CGAL
   ${VTK_LIBRARIES}
+  # map-sampler
 )
+
+if(CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+  add_definitions(-DDEBUG)
+endif()
 
 install(TARGETS Generation DESTINATION ${model_dir})
