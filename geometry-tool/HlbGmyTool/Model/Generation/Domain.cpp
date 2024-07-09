@@ -11,12 +11,13 @@
 Domain::Domain(double OriginWorking[3],
                unsigned SiteCounts[3],
                unsigned BlockSize)
-    : BlockSize(BlockSize) {
+    : BlockSize(BlockSize), BlockWritingNum(0) {
   int remainder, totalBlocks = 1;
 
   for (unsigned int i = 0; i < 3; ++i) {
     // Copy in
     this->OriginWorking[i] = OriginWorking[i];
+
     this->SiteCounts[i] = SiteCounts[i];
 
     // Now work out how many blocks we require.
@@ -33,6 +34,11 @@ Domain::Domain(double OriginWorking[3],
   // Resize the block vector
   this->blocks.resize(totalBlocks);
   Log() << "Domain size " << this->BlockCounts << std::endl;
+
+  this->blockWriters.resize(totalBlocks);
+  
+  this->blockready = new std::atomic<bool>[totalBlocks];
+
 }
 
 Vector Domain::CalcPositionWorkingFromIndex(const Index& index) const {
@@ -43,17 +49,13 @@ Vector Domain::CalcPositionWorkingFromIndex(const Index& index) const {
 
 Block& Domain::GetBlock(const Index& index) {
   int i = this->TranslateIndex(index);
-  Block* bp = this->blocks[i];
-  // If the block hasn't been created yet, do so.
-  if (!bp) {
-    bp = this->blocks[i] = new Block(*this, index, this->BlockSize);
-  }
-  return *bp;
+  this->blocks[i] = new Block(*this, index, this->BlockSize);
+  return *this->blocks[i];
 }
 
 Site& Domain::GetSite(const Index& gIndex) {
   Block& block = this->GetBlock(gIndex / this->BlockSize);
-  return block.GetGlobalSite(gIndex);
+  return block.GetSite(gIndex);
 }
 
 BlockIterator Domain::begin() {
@@ -96,33 +98,6 @@ BlockIterator& BlockIterator::operator++() {
   // Note it is an error to increment an iterator past it's end, so we don't
   // need to handle that case.
   int pos;
-  // Delete any unnecessary blocks
-  for (int i = this->current[0] - 1; i < this->current[0] + 1; ++i) {
-    if (i < 0)
-      continue;
-    if (i == this->current[0] && i != this->maxima[0])
-      continue;
-
-    for (int j = this->current[1] - 1; j < this->current[1] + 1; ++j) {
-      if (j < 0)
-        continue;
-      if (j == this->current[1] && j != this->maxima[1])
-        continue;
-
-      for (int k = this->current[2] - 1; k < this->current[2] + 1; ++k) {
-        if (k < 0)
-          continue;
-        if (k == this->current[2] && k != this->maxima[2])
-          continue;
-
-        // This block can no longer be reached from the current or later
-        // blocks, so delete, and set pointer to null
-        pos = this->domain->TranslateIndex(i, j, k);
-        delete this->domain->blocks[pos];
-        this->domain->blocks[pos] = NULL;
-      }
-    }
-  }
 
   // Update the index vector
   this->current[2] += 1;
@@ -136,6 +111,9 @@ BlockIterator& BlockIterator::operator++() {
       this->current[0] += 1;
     }
   }
+  // print traversal order
+  //Log() << "Traversing block " << this->current[0] << " " << this->current[1]
+        //<< " " << this->current[2] << std::endl;
   return *this;
 }
 
@@ -152,5 +130,5 @@ BlockIterator::reference BlockIterator::operator*() {
 }
 
 BlockIterator::pointer BlockIterator::operator->() {
-  return &(*(*this));
+  return &this->domain->GetBlock(this->current);
 }

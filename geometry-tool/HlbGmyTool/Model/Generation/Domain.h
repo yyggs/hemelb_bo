@@ -7,12 +7,14 @@
 #define HEMELBSETUPTOOL_DOMAIN_H
 
 #include <vector>
+#include <atomic>
 
 #include "BlockWriter.h"
 #include "Index.h"
+#include "Debug.h"
+#include "Block.h"
+#include "Site.h"
 
-class Block;
-class Site;
 class BlockIterator;
 
 // Note that the "working" units for this are voxels.
@@ -25,13 +27,16 @@ class Domain {
   int BlockSize;
 
   std::vector<Block*> blocks;
+  std::vector<BlockWriter*> blockWriters;
+  std::atomic<bool>* blockready;
+  public:
+  int BlockWritingNum;
 
   friend class BlockIterator;
   friend class NeighbourIteratorBase;
 
  public:
   using iterator = BlockIterator;
-
   /*
    * C'tor
    * SurfaceBounds - bounds of the surface, in standard VTK order
@@ -53,8 +58,29 @@ class Domain {
 
   inline Index const& GetBlockCounts() const { return BlockCounts; }
   inline void SetBlockCounts(Index const& val) { BlockCounts = val; }
+  inline void DeleteBlock(Index& ind){
+    delete this->blocks[this->TranslateIndex(ind)];
+    this->blocks[this->TranslateIndex(ind)] = nullptr;
+  }
 
   inline Index const& GetSiteCounts() const { return SiteCounts; }
+  inline void SetBlockWriter(Index const& index, BlockWriter* writer) {
+    int blocknumber = index[2] + index[1] * BlockCounts[2] + index[0] * BlockCounts[1] * BlockCounts[2];
+    this->blockWriters[blocknumber] = writer;
+    this->blockready[blocknumber] = true;
+  }
+  inline bool CheckBlockReady() {
+    return this->blockready[this->BlockWritingNum];
+  }
+  inline BlockWriter* GetBlockWriter() {
+    //Log() << "Getting block writer " << this->BlockWritingNum << std::endl;
+    return this->blockWriters[this->BlockWritingNum++];
+  }
+  inline bool CheckWritingDone() {
+    if(this->BlockWritingNum >= this->BlockCounts[0] * this->BlockCounts[1] * this->BlockCounts[2])
+      return true;
+    return false;
+  }
 
   /*
    * These TranslateIndex member functions translate between 3d and 1a

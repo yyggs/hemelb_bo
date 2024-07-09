@@ -8,14 +8,19 @@
 
 #include <string>
 #include <vector>
+#include <boost/asio.hpp>
+#include <iostream>
 
 #include "GenerationError.h"
 #include "Iolet.h"
+#include "Debug.h"
 
 class GeometryWriter;
 class Site;
 class BlockWriter;
 class Block;
+class Domain;
+class BlockIterator;
 
 class GeometryGenerator {
  public:
@@ -59,9 +64,12 @@ class GeometryGenerator {
   void ComputeAveragedNormal(Site& site) const;
 
  protected:
+  void ProcessBlock(Block& block, GeometryWriter& writer, 
+        bool skipNonIntersectingBlocks);
   virtual void ComputeBounds(double[]) const = 0;
   virtual void PreExecute(void);
   virtual void ClassifySite(Site& site) = 0;
+  virtual void ClassifyStartingSite(Site& originSite, Site& site) = 0;
   // virtual void CreateCGALPolygon(void);
   void WriteSolidSite(BlockWriter& blockWriter, Site& site);
   void WriteFluidSite(BlockWriter& blockWriter, Site& site);
@@ -71,6 +79,8 @@ class GeometryGenerator {
   std::string OutputGeometryFile;
   std::vector<Iolet> Iolets;
   virtual int BlockInsideOrOutsideSurface(const Block& block) = 0;
+  void ComputeStartingSite(Site& startSite);
+  void CheckWriting(Domain& domain, GeometryWriter& writer);
 };
 
 #endif  // HEMELBSETUPTOOL_GEOMETRYGENERATOR_H

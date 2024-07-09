@@ -15,6 +15,7 @@
 
 #include <cassert>
 #include "io/formats/geometry.h"
+#include <chrono>
 
 using namespace hemelb::io::formats;
 
@@ -27,6 +28,7 @@ GeometryGenerator::~GeometryGenerator() {}
 void GeometryGenerator::PreExecute() {}
 
 void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
+  auto start = std::chrono::high_resolution_clock::now();
   if (skipNonIntersectingBlocks) {
     throw GenerationErrorMessage(
         "Skip non intersecting blocks functionality currently not available. "
@@ -37,25 +39,61 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
   double bounds[6];
   this->ComputeBounds(bounds);
   Domain domain(this->OriginWorking, this->SiteCounts);
-
   GeometryWriter writer(this->OutputGeometryFile, domain.GetBlockSize(),
                         domain.GetBlockCounts());
+  
 
+
+  boost::asio::thread_pool pool(16);
+
+  boost::asio::post(pool, [&](){
+    this->CheckWriting(domain, writer);
+  });
+  
   for (BlockIterator blockIt = domain.begin(); blockIt != domain.end();
        ++blockIt) {
+      Block& block = *blockIt;
+      boost::asio::post(pool, [&](){
+        this->ProcessBlock(block, writer, skipNonIntersectingBlocks);
+    });
+  }
+
+  pool.join();
+
+  writer.Close();
+  auto end = std::chrono::high_resolution_clock::now();  
+  std::chrono::duration<double> elapsed = end - start; 
+  std::cout << "Execution time: " << elapsed.count() << " seconds" << std::endl;
+}
+
+void GeometryGenerator::CheckWriting(Domain& domain, GeometryWriter& writer) {
+  while(!domain.CheckWritingDone()){
+    if(domain.CheckBlockReady()){
+      //Log() << "Writing block " << domain.BlockWritingNum << std::endl;
+      BlockWriter* blockWriterPtr = domain.GetBlockWriter();
+      blockWriterPtr->Write(writer);
+      delete blockWriterPtr;
+    }
+  }
+}
+
+
+void GeometryGenerator::ProcessBlock(Block& block, GeometryWriter& writer, 
+    bool skipNonIntersectingBlocks) {
     // Open the BlockStarted context of the writer; this will
     // deal with flushing the state to the file (or not, in the
     // case where there are no fluid sites).
     BlockWriter* blockWriterPtr = writer.StartNextBlock();
-    Block& block = *blockIt;
+    Site& startSite = *block.begin();
 
-    int side = 0;  // represents whether the block is inside (-1) outside (+1)
-                   // or undetermined (0)
+    this->ComputeStartingSite(startSite);
+
+    int side = 0;  // represents whether the block is inside (-1) outside (+1) or undetermined (0)
 
     if (skipNonIntersectingBlocks) {
-      side = this->BlockInsideOrOutsideSurface(block);
-    } else {  // don't use the optimisation -- check every site
-      side = 0;
+        side = this->BlockInsideOrOutsideSurface(block);
+    } else {
+        side = 0;
     }
 
     switch (side) {
@@ -65,11 +103,9 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
         break;
       case 0:
         // Block has some surface within it.
-        for (SiteIterator siteIt = block.begin(); siteIt != block.end();
-             ++siteIt) {
-          Site& site = **siteIt;
+        for (Block::InnerSiteIterator siteIt = block.begin(); siteIt != block.end(); ++siteIt) {
+          Site& site = *siteIt;
           this->ClassifySite(site);
-          // here we should check site
           if (site.IsFluid) {
             blockWriterPtr->IncrementFluidSitesCount();
             WriteFluidSite(*blockWriterPtr, site);
@@ -80,29 +116,26 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
         break;
       case -1:
         // Block is entirely inside the domain
-        for (SiteIterator siteIt = block.begin(); siteIt != block.end();
-             ++siteIt) {
-          Site& site = **siteIt;
+        for (Block::InnerSiteIterator siteIt = block.begin(); siteIt != block.end(); ++siteIt) {
+          Site& site = *siteIt;
           site.IsFluidKnown = true;
           site.IsFluid = true;
           site.CreateLinksVector();
-          for (unsigned int link_index = 0; link_index < site.Links.size();
-               ++link_index) {
+          for (unsigned int link_index = 0; link_index < site.Links.size(); ++link_index) {
             site.Links[link_index].Type = geometry::CutType::NONE;
           }
           blockWriterPtr->IncrementFluidSitesCount();
           WriteFluidSite(*blockWriterPtr, site);
         }
         break;
-      default:
-        break;
     }
     blockWriterPtr->Finish();
-    blockWriterPtr->Write(writer);
-    delete blockWriterPtr;
-  }
-  writer.Close();
+    Index blockindex = block.GetIndex();
+    block.GetDomain().SetBlockWriter(blockindex, blockWriterPtr);
+    block.GetDomain().DeleteBlock(blockindex);
 }
+
+
 
 void GeometryGenerator::WriteSolidSite(BlockWriter& blockWriter, Site& site) {
   blockWriter << static_cast<unsigned int>(geometry::SiteType::SOLID);
@@ -171,5 +204,17 @@ void GeometryGenerator::ComputeAveragedNormal(Site& site) const {
     if (site.WallNormalAvailable) {
       site.WallNormal.Normalise();
     }
+  }
+}
+
+void GeometryGenerator::ComputeStartingSite(Site& startSite) {
+  Block& block = startSite.GetBlock();
+  Site originSite = Site(block, 0, 0, 0);
+  originSite.IsFluidKnown = true;
+  originSite.IsFluid = false;
+  this->ClassifyStartingSite(originSite, startSite);
+  startSite.IsFluidKnown = true;
+  if(startSite.IsFluid){
+    startSite.CreateLinksVector();
   }
 }
