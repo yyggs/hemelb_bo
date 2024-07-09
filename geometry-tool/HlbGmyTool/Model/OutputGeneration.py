@@ -102,12 +102,8 @@ class GeometryGenerator(object):
 
     def Execute(self):
         """Forward this to the C++ implementation."""
-        t = Timer()
-        t.Start()
         self.generator.Execute(self.skipNonIntersectingBlocks)
         XmlWriter(self).Write()
-        t.Stop()
-        print("Setup time: %f s" % t.GetTime())
         return
 
     pass

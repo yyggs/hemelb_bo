@@ -9,12 +9,13 @@
 #include <vector>
 #include "Index.h"
 #include "io/formats/geometry.h"
+#include "Debug.h"
 // shortcut to geometry class
 using hemelb::io::formats::geometry;
 
 // class Iolet;
-class Block;
 class Domain;
+class Block;
 
 class LaterNeighbourIterator;
 class NeighbourIterator;
@@ -36,9 +37,10 @@ struct LinkData {
 class Site {
  public:
   Site(Block& block, Index& index);
-  Site(Block& block, unsigned int i, unsigned int j, unsigned int k);
+  Site(Block& block, int i, int j, int k);
   bool IsFluidKnown;
   bool IsFluid;
+  bool IsHalo;
   std::vector<LinkData> Links;
   Vector Position;
   bool WallNormalAvailable;  ///< Whether an approximation of the wall normal is
@@ -55,6 +57,8 @@ class Site {
   NeighbourIterator endall();
   inline const Index& GetIndex() const { return this->index; }
   inline const Block& GetBlock() const { return this->block; }
+  inline Block& GetBlock() { return this->block; }
+  //inline const Index GetRelativeIndex() const { return index((this->index[0] % block.size)+1, (this->index[1] % block.size)+1, (this->index[2] % block.size)+1); }
   const Index GetDomainBlockCount();
   const int GetDomainBlockSize();
 

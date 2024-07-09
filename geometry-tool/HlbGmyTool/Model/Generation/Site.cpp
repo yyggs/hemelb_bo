@@ -15,15 +15,17 @@
 Site::Site(Block& block, Index& index)
     : IsFluidKnown(false),
       IsFluid(false),
+      IsHalo(false),
       Position(block.GetDomain().CalcPositionWorkingFromIndex(index)),
       block(block),
       index(index),
       WallNormalAvailable(false) {}
 
 // C'tor with index constructed in-place
-Site::Site(Block& block, unsigned int i, unsigned int j, unsigned int k)
+Site::Site(Block& block, int i, int j, int k)
     : IsFluidKnown(false),
       IsFluid(false),
+      IsHalo(false),
       block(block),
       index(i, j, k),
       WallNormalAvailable(false) {
@@ -126,9 +128,15 @@ bool NeighbourIteratorBase::operator!=(
 }
 
 // Dereference
+// NeighbourIteratorBase::reference NeighbourIteratorBase::operator*() {
+//   return this->domain->GetSite(this->site->index + GetVector());
+// }
+
+// Get site in the haloblock
 NeighbourIteratorBase::reference NeighbourIteratorBase::operator*() {
-  return this->domain->GetSite(this->site->index + GetVector());
+  return this->site->block.GetSite(this->site->index + GetVector());
 }
+
 // Member lookup
 NeighbourIteratorBase::pointer NeighbourIteratorBase::operator->() {
   return &(*(*this));
@@ -154,6 +162,9 @@ bool LaterNeighbourIterator::IsCurrentValid() {
   Index neighIndex = this->site->index + GetVector();
 
   if (this->IsCurrentInDomain()) {
+    if(this->site->block.GetSite(neighIndex).IsHalo){
+      return true;
+    }
     // neighbour's in the domain, check it's block
     int siteBlockIjk = this->domain->TranslateIndex(this->site->block.index);
     int neighBlockIjk =

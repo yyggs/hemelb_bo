@@ -58,7 +58,7 @@ void BlockWriter::Finish() {
     stream.zfree = Z_NULL;
     stream.opaque = Z_NULL;
     // Max compression
-    ret = deflateInit(&stream, 9);
+    ret = deflateInit(&stream, 6);
     if (ret != Z_OK)
       throw GenerationErrorMessage("Cannot init zlib structures");
 
