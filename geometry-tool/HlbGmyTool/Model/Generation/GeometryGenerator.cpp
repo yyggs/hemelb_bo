@@ -44,7 +44,7 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
   
 
 
-  boost::asio::thread_pool pool(16);
+  boost::asio::thread_pool pool(128);
 
   boost::asio::post(pool, [&](){
     this->CheckWriting(domain, writer);
@@ -52,8 +52,9 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
   
   for (BlockIterator blockIt = domain.begin(); blockIt != domain.end();
        ++blockIt) {
-      Block& block = *blockIt;
-      boost::asio::post(pool, [&](){
+      BlockIterator copyIt = blockIt;
+      boost::asio::post(pool, [copyIt, this, &writer, skipNonIntersectingBlocks]() mutable{
+        Block& block = *copyIt; 
         this->ProcessBlock(block, writer, skipNonIntersectingBlocks);
     });
   }

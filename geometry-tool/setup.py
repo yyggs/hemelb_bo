@@ -39,7 +39,7 @@ setup(
         f"-DMPFR_LIBRARIES='/work/m23oc/m23oc/s2484724/mpfr-4.2.1/lib'",
         f"-DMPFR_INCLUDE_DIR='/work/m23oc/m23oc/s2484724/mpfr-4.2.1/include'",
         f"-DCMAKE_BUILD_TYPE={build_type}",
-        # f"-DCMAKE_CXX_FLAGS='-g'",
+        # f"-DCMAKE_CXX_FLAGS='-S'",
         # f"-DCMAKE_EXE_LINKER_FLAGS=-L/work/y07/shared/utils/core/forge/24.0/map/libs/default/gnu/ofi -lmap-sampler -Wl,-rpath=/work/y07/shared/utils/core/forge/24.0/map/libs/default/gnu/ofi"
     ],
     entry_points={

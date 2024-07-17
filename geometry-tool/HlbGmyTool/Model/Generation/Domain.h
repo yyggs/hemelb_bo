@@ -31,7 +31,7 @@ class Domain {
   std::atomic<bool>* blockready;
   public:
   int BlockWritingNum;
-
+  
   friend class BlockIterator;
   friend class NeighbourIteratorBase;
 
@@ -73,7 +73,6 @@ class Domain {
     return this->blockready[this->BlockWritingNum];
   }
   inline BlockWriter* GetBlockWriter() {
-    //Log() << "Getting block writer " << this->BlockWritingNum << std::endl;
     return this->blockWriters[this->BlockWritingNum++];
   }
   inline bool CheckWritingDone() {
