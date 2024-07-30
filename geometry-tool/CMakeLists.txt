@@ -115,6 +115,10 @@ target_link_libraries(Generation PRIVATE
   # map-sampler
 )
 
+include_directories(/work/y07/shared/utils/core/amd-uprof/4.0.341/include)
+find_library(AMDU_PROF_LIB NAMES AMDProfileController PATHS /work/y07/shared/utils/core/amd-uprof/4.0.341/lib/x64 
+             NO_DEFAULT_PATH)
+target_link_libraries(Generation PRIVATE ${AMDU_PROF_LIB})
 if(CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
   add_definitions(-DDEBUG)
 endif()

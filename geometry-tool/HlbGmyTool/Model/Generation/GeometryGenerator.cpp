@@ -2,7 +2,7 @@
 // the HemeLB team and/or their institutions, as detailed in the
 // file AUTHORS. This software is provided under the terms of the
 // license in the file LICENSE.
-
+#include <AMDProfileController.h>
 #include "GeometryGenerator.h"
 #include "GeometryWriter.h"
 
@@ -28,7 +28,6 @@ GeometryGenerator::~GeometryGenerator() {}
 void GeometryGenerator::PreExecute() {}
 
 void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
-  auto start = std::chrono::high_resolution_clock::now();
   if (skipNonIntersectingBlocks) {
     throw GenerationErrorMessage(
         "Skip non intersecting blocks functionality currently not available. "
@@ -48,7 +47,6 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
 
   if (env_p != nullptr) {
       try {
-          std::cout << std::stoi(env_p) << std::endl;
           num_threads = std::stoi(env_p); 
       } catch (const std::exception& e) {
           std::cerr << "Invalid thread count provided in GMY_TOOL_THREADS: " << e.what() << '\n';
@@ -56,8 +54,9 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
       }
   }
   boost::asio::thread_pool pool(num_threads);
-  Log() << "Using " << num_threads << " threads" << std::endl;
-
+  std::cout << "Using " << num_threads << " threads" << std::endl;
+  amdProfileResume ();
+  auto start = std::chrono::high_resolution_clock::now();
   boost::asio::post(pool, [&](){
     this->CheckWriting(domain, writer);
   });
@@ -72,11 +71,11 @@ void GeometryGenerator::Execute(bool skipNonIntersectingBlocks) {
   }
 
   pool.join();
-
-  writer.Close();
   auto end = std::chrono::high_resolution_clock::now();  
+  amdProfilePause ();
   std::chrono::duration<double> elapsed = end - start; 
   std::cout << "Execution time: " << elapsed.count() << " seconds" << std::endl;
+  writer.Close();
 }
 
 void GeometryGenerator::CheckWriting(Domain& domain, GeometryWriter& writer) {

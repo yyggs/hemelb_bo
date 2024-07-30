@@ -205,7 +205,7 @@ void PolyDataGenerator::CreateCGALPolygon(void) {
       std::make_unique<Tree>(this->ClippedCGALSurface->facets_begin(),
                              this->ClippedCGALSurface->facets_end());
   duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-  std::cout << "Preprocessing took: " << duration << " s " << endl;
+  // std::cout << "Preprocessing took: " << duration << " s " << endl;
 }
 
 void PolyDataGenerator::PreExecute(void) {
