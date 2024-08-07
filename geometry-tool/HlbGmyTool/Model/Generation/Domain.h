@@ -67,11 +67,11 @@ class Domain {
   inline void SetBlockWriter(Index const& index, BlockWriter* writer) {
     int blocknumber = index[2] + index[1] * BlockCounts[2] + index[0] * BlockCounts[1] * BlockCounts[2];
     this->blockWriters[blocknumber] = writer;
-    this->blockready[blocknumber] = true;
+    this->blockready[blocknumber].store(true, std::memory_order_release);
     this->blockready[blocknumber].notify_one();
   }
   inline void AtomicWait(){
-    blockready[this->BlockWritingNum].wait(false);
+    blockready[this->BlockWritingNum].wait(false, std::memory_order_acquire);
   }
   inline BlockWriter* GetBlockWriter() {
     return this->blockWriters[this->BlockWritingNum++];
